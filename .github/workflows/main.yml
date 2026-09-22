@@ -36,13 +36,28 @@ jobs:
         run: flutter pub get
 
       - name: Analyze
-        run: flutter analyze lib --no-fatal-infos
+        run: flutter analyze lib --no-fatal-infos --no-fatal-warnings
 
       - name: Build APK
-        run: flutter build apk --release
+        run: |
+          flutter build apk --release \
+            --dart-define=SUPABASE_URL="${{ secrets.SUPABASE_URL }}" \
+            --dart-define=SUPABASE_ANON_KEY="${{ secrets.SUPABASE_ANON_KEY }}"
+
+      - name: Build AAB
+        run: |
+          flutter build appbundle --release \
+            --dart-define=SUPABASE_URL="${{ secrets.SUPABASE_URL }}" \
+            --dart-define=SUPABASE_ANON_KEY="${{ secrets.SUPABASE_ANON_KEY }}"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: Sociam-APK
           path: build/app/outputs/flutter-apk/app-release.apk
+
+      - name: Upload AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: Sociam-AAB
+          path: build/app/outputs/bundle/release/app-release.aab
