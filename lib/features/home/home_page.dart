@@ -47,7 +47,9 @@ class _HomePageState extends State<HomePage> {
     if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
+      SnackBar(
+        content: Text(message),
+      ),
     );
   }
 
@@ -281,7 +283,7 @@ class _PostCardState extends State<_PostCard> {
             );
       });
     } catch (_) {
-      // Keep the post visible even if likes fail to load.
+      // Likes are optional; keep the post visible.
     }
   }
 
@@ -327,3 +329,310 @@ class _PostCardState extends State<_PostCard> {
         await supabase.from('post_likes').insert({
           'post_id': postId,
           'user_id': userId,
+        });
+      }
+    } catch (_) {
+      if (!mounted) return;
+
+      setState(() {
+        liked = previousLiked;
+        likeCount = previousCount;
+      });
+
+      showMessage('Like failed. Please try again.');
+    } finally {
+      if (mounted) {
+        setState(() {
+          loadingLike = false;
+        });
+      }
+    }
+  }
+
+  void showMessage(String message) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+      ),
+    );
+  }
+
+  String getUsername() {
+    final profile = widget.post['profiles'];
+
+    if (profile is Map) {
+      final username = profile['username'];
+
+      if (username != null &&
+          username.toString().trim().isNotEmpty) {
+        return username.toString();
+      }
+
+      final fullName = profile['full_name'];
+
+      if (fullName != null &&
+          fullName.toString().trim().isNotEmpty) {
+        return fullName.toString();
+      }
+    }
+
+    return 'Sociam User';
+  }
+
+  String getFullName() {
+    final profile = widget.post['profiles'];
+
+    if (profile is Map) {
+      final fullName = profile['full_name'];
+
+      if (fullName != null &&
+          fullName.toString().trim().isNotEmpty) {
+        return fullName.toString();
+      }
+    }
+
+    return getUsername();
+  }
+
+  String getAvatarUrl() {
+    final profile = widget.post['profiles'];
+
+    if (profile is Map) {
+      final avatar = profile['avatar_url'];
+
+      if (avatar != null &&
+          avatar.toString().trim().isNotEmpty) {
+        return avatar.toString();
+      }
+    }
+
+    return '';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final content =
+        widget.post['content']?.toString() ?? '';
+
+    final imageUrl =
+        widget.post['image_url']?.toString() ?? '';
+
+    final videoUrl =
+        widget.post['video_url']?.toString() ?? '';
+
+    final avatarUrl = getAvatarUrl();
+
+    return Card(
+      margin: const EdgeInsets.symmetric(
+        horizontal: 10,
+        vertical: 6,
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                _Avatar(
+                  imageUrl: avatarUrl,
+                  name: getUsername(),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment:
+                        CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        getFullName(),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      Text(
+                        '@${getUsername()}',
+                        style: TextStyle(
+                          color: Colors.grey,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  onPressed: () {
+                    showMessage(
+                      'Post options coming soon',
+                    );
+                  },
+                  icon: const Icon(Icons.more_vert),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (content.trim().isNotEmpty)
+              Text(
+                content,
+                style: const TextStyle(
+                  fontSize: 16,
+                ),
+              ),
+            if (imageUrl.trim().isNotEmpty) ...[
+              const SizedBox(height: 12),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.network(
+                  imageUrl,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  errorBuilder:
+                      (context, error, stackTrace) {
+                    return Container(
+                      height: 200,
+                      alignment: Alignment.center,
+                      color: Colors.grey.shade200,
+                      child: const Icon(
+                        Icons.broken_image_outlined,
+                        size: 50,
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+            if (videoUrl.trim().isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                height: 180,
+                decoration: BoxDecoration(
+                  color: Colors.black,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Center(
+                  child: Icon(
+                    Icons.play_circle_outline,
+                    color: Colors.white,
+                    size: 60,
+                  ),
+                ),
+              ),
+            ],
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                _CircleButton(
+                  icon: liked
+                      ? Icons.favorite
+                      : Icons.favorite_border,
+                  active: liked,
+                  onTap: toggleLike,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  '$likeCount',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                _CircleButton(
+                  icon: Icons.comment_outlined,
+                  onTap: () {
+                    showMessage(
+                      'Comments coming soon',
+                    );
+                  },
+                ),
+                const SizedBox(width: 12),
+                _CircleButton(
+                  icon: Icons.share_outlined,
+                  onTap: () {
+                    showMessage(
+                      'Share coming soon',
+                    );
+                  },
+                ),
+                const Spacer(),
+                if (loadingLike)
+                  const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Avatar extends StatelessWidget {
+  final String imageUrl;
+  final String name;
+
+  const _Avatar({
+    required this.imageUrl,
+    required this.name,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (imageUrl.trim().isNotEmpty) {
+      return CircleAvatar(
+        radius: 23,
+        backgroundImage: NetworkImage(imageUrl),
+      );
+    }
+
+    String letter = 'S';
+
+    if (name.trim().isNotEmpty) {
+      letter = name.trim()[0].toUpperCase();
+    }
+
+    return CircleAvatar(
+      radius: 23,
+      child: Text(
+        letter,
+        style: const TextStyle(
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+}
+
+class _CircleButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+  final bool active;
+
+  const _CircleButton({
+    required this.icon,
+    required this.onTap,
+    this.active = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      onPressed: onTap,
+      icon: Icon(
+        icon,
+        size: 24,
+        color: active ? Colors.red : null,
+      ),
+      tooltip: active ? 'Unlike' : 'Like',
+    );
+  }
+}
