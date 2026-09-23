@@ -135,12 +135,15 @@ class _FeedPageState extends State<FeedPage> {
           SliverToBoxAdapter(
             child: _buildHeader(),
           ),
+
           SliverToBoxAdapter(
             child: _buildFeedTabs(),
           ),
+
           SliverToBoxAdapter(
             child: _buildQuickCreate(),
           ),
+
           FutureBuilder<List<Map<String, dynamic>>>(
             future: loadPosts(),
             builder: (context, snapshot) {
@@ -259,11 +262,14 @@ class _FeedPageState extends State<FeedPage> {
               ],
             ),
           ),
+
           _CircleButton(
             icon: Icons.search,
             onTap: () {},
           ),
+
           const SizedBox(width: 8),
+
           _CircleButton(
             icon: Icons.notifications_none,
             onTap: () {},
@@ -282,7 +288,7 @@ class _FeedPageState extends State<FeedPage> {
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
-        children: [
+        children: const [
           _FeedTab(
             title: 'For You',
             selected: true,
@@ -325,7 +331,9 @@ class _FeedPageState extends State<FeedPage> {
               color: Color(0xFF4F64A0),
             ),
           ),
+
           const SizedBox(width: 12),
+
           const Expanded(
             child: Text(
               'What are you thinking?',
@@ -335,6 +343,7 @@ class _FeedPageState extends State<FeedPage> {
               ),
             ),
           ),
+
           IconButton(
             onPressed: () {
               Navigator.push(
@@ -406,7 +415,9 @@ class _PostCard extends StatelessWidget {
                 _Avatar(
                   avatarUrl: avatarUrl,
                 ),
+
                 const SizedBox(width: 12),
+
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -429,6 +440,7 @@ class _PostCard extends StatelessWidget {
                     ],
                   ),
                 ),
+
                 IconButton(
                   onPressed: () {},
                   icon: const Icon(Icons.more_horiz),
@@ -438,6 +450,7 @@ class _PostCard extends StatelessWidget {
 
             if (content.isNotEmpty) ...[
               const SizedBox(height: 16),
+
               Text(
                 content,
                 style: const TextStyle(
@@ -450,6 +463,7 @@ class _PostCard extends StatelessWidget {
             if (post['image_url'] != null &&
                 post['image_url'].toString().isNotEmpty) ...[
               const SizedBox(height: 14),
+
               ClipRRect(
                 borderRadius: BorderRadius.circular(16),
                 child: Image.network(
@@ -461,7 +475,9 @@ class _PostCard extends StatelessWidget {
                       height: 180,
                       color: const Color(0xFFEDEFFC),
                       child: const Center(
-                        child: Icon(Icons.broken_image_outlined),
+                        child: Icon(
+                          Icons.broken_image_outlined,
+                        ),
                       ),
                     );
                   },
@@ -586,7 +602,9 @@ class _FeedTab extends StatelessWidget {
           textAlign: TextAlign.center,
           style: TextStyle(
             fontWeight: selected ? FontWeight.bold : FontWeight.w500,
-            color: selected ? const Color(0xFF4F64A0) : Colors.grey,
+            color: selected
+                ? const Color(0xFF4F64A0)
+                : Colors.grey,
           ),
         ),
       ),
@@ -619,14 +637,14 @@ class _ActionButton extends StatelessWidget {
               Icon(
                 icon,
                 size: 20,
-                color: Colors.grey.shade700,
+                color: Colors.grey,
               ),
               const SizedBox(width: 6),
               Text(
                 label,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 13,
-                  color: Colors.grey.shade700,
+                  color: Colors.grey,
                 ),
               ),
             ],
