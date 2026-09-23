@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'app.dart';
@@ -14,6 +16,14 @@ Future<void> main() async {
   }
 
   try {
+    final result = await InternetAddress.lookup(
+      'djscbctzxwzcnolyraes.supabase.co',
+    );
+
+    if (result.isEmpty) {
+      throw const SocketException('DNS lookup returned no address');
+    }
+
     await Supabase.initialize(
       url: url,
       anonKey: key,
@@ -23,11 +33,15 @@ Future<void> main() async {
   } catch (e) {
     runApp(
       MaterialApp(
+        debugShowCheckedModeBanner: false,
         home: Scaffold(
           body: Center(
-            child: Text(
-              'Supabase connection error:\n$e',
-              textAlign: TextAlign.center,
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Text(
+                'Sociam Network Test Failed:\n\n$e',
+                textAlign: TextAlign.center,
+              ),
             ),
           ),
         ),
