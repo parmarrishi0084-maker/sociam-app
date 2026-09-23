@@ -32,10 +32,56 @@ jobs:
             flutter create --platforms=android --org com.sociam.app .
           fi
 
-      - name: Check Internet permission
+      - name: Configure Android permissions
         run: |
-          echo "Checking AndroidManifest.xml"
-          grep -n "android.permission.INTERNET" android/app/src/main/AndroidManifest.xml || true
+          python3 - <<'PY'
+          from pathlib import Path
+
+          manifest = Path("android/app/src/main/AndroidManifest.xml")
+
+          if not manifest.exists():
+              raise SystemExit("AndroidManifest.xml not found")
+
+          text = manifest.read_text()
+
+          permissions = [
+              '<uses-permission android:name="android.permission.INTERNET"/>',
+              '<uses-permission android:name="android.permission.CAMERA"/>',
+              '<uses-permission android:name="android.permission.RECORD_AUDIO"/>',
+              '<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>',
+              '<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>',
+              '<uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>',
+              '<uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>',
+              '<uses-permission android:name="android.permission.READ_MEDIA_VIDEO"/>',
+              '<uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED"/>',
+          ]
+
+          missing = [
+              p for p in permissions
+              if p.split('android:name="')[1].split('"')[0] not in text
+          ]
+
+          if missing:
+              marker = text.find(">")
+              if marker == -1:
+                  raise SystemExit("Could not find manifest tag")
+
+              insertion = "\n" + "\n".join(
+                  "    " + p for p in missing
+              ) + "\n"
+
+              text = text[:marker + 1] + insertion + text[marker + 1:]
+              manifest.write_text(text)
+
+          print("Android permissions configured:")
+
+          for permission in permissions:
+              name = permission.split('android:name="')[1].split('"')[0]
+              print(" - " + name)
+
+          print("\nFinal AndroidManifest.xml:")
+          print(manifest.read_text())
+          PY
 
       - name: Install dependencies
         run: flutter pub get
