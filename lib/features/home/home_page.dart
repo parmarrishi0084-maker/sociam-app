@@ -135,15 +135,12 @@ class _FeedPageState extends State<FeedPage> {
           SliverToBoxAdapter(
             child: _buildHeader(),
           ),
-
           SliverToBoxAdapter(
             child: _buildFeedTabs(),
           ),
-
           SliverToBoxAdapter(
             child: _buildQuickCreate(),
           ),
-
           FutureBuilder<List<Map<String, dynamic>>>(
             future: loadPosts(),
             builder: (context, snapshot) {
@@ -225,7 +222,6 @@ class _FeedPageState extends State<FeedPage> {
               );
             },
           ),
-
           const SliverToBoxAdapter(
             child: SizedBox(height: 24),
           ),
@@ -262,14 +258,11 @@ class _FeedPageState extends State<FeedPage> {
               ],
             ),
           ),
-
           _CircleButton(
             icon: Icons.search,
             onTap: () {},
           ),
-
           const SizedBox(width: 8),
-
           _CircleButton(
             icon: Icons.notifications_none,
             onTap: () {},
@@ -287,8 +280,8 @@ class _FeedPageState extends State<FeedPage> {
         color: const Color(0xFFEDEFFC),
         borderRadius: BorderRadius.circular(16),
       ),
-      child: Row(
-        children: const [
+      child: const Row(
+        children: [
           _FeedTab(
             title: 'For You',
             selected: true,
@@ -331,9 +324,7 @@ class _FeedPageState extends State<FeedPage> {
               color: Color(0xFF4F64A0),
             ),
           ),
-
           const SizedBox(width: 12),
-
           const Expanded(
             child: Text(
               'What are you thinking?',
@@ -343,7 +334,6 @@ class _FeedPageState extends State<FeedPage> {
               ),
             ),
           ),
-
           IconButton(
             onPressed: () {
               Navigator.push(
@@ -366,7 +356,7 @@ class _FeedPageState extends State<FeedPage> {
   }
 }
 
-class _PostCard extends StatelessWidget {
+class _PostCard extends StatefulWidget {
   final Map<String, dynamic> post;
   final String timeText;
 
@@ -376,11 +366,125 @@ class _PostCard extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    final profile = post['profiles'] as Map<String, dynamic>?;
+  State<_PostCard> createState() => _PostCardState();
+}
 
-    final fullName = profile?['full_name']?.toString().trim();
-    final username = profile?['username']?.toString().trim();
+class _PostCardState extends State<_PostCard> {
+  bool liked = false;
+  int likeCount = 0;
+  bool loadingLike = false;
+  bool loadedLikeData = false;
+
+  final supabase = Supabase.instance.client;
+
+  Future<void> loadLikeData() async {
+    if (loadedLikeData) return;
+
+    loadedLikeData = true;
+
+    try {
+      final postId = widget.post['id'];
+      final userId = supabase.auth.currentUser?.id;
+
+      final likes = await supabase
+          .from('post_likes')
+          .select('user_id')
+          .eq('post_id', postId);
+
+      final rows = List<Map<String, dynamic>>.from(likes);
+
+      final userLiked = userId != null &&
+          rows.any((row) => row['user_id']?.toString() == userId);
+
+      if (mounted) {
+        setState(() {
+          likeCount = rows.length;
+          liked = userLiked;
+        });
+      }
+    } catch (e) {
+      loadedLikeData = false;
+    }
+  }
+
+  Future<void> toggleLike() async {
+    if (loadingLike) return;
+
+    final userId = supabase.auth.currentUser?.id;
+
+    if (userId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please login to like a post.'),
+        ),
+      );
+      return;
+    }
+
+    final postId = widget.post['id'];
+
+    setState(() {
+      loadingLike = true;
+    });
+
+    try {
+      if (liked) {
+        await supabase
+            .from('post_likes')
+            .delete()
+            .eq('post_id', postId)
+            .eq('user_id', userId);
+
+        if (mounted) {
+          setState(() {
+            liked = false;
+            if (likeCount > 0) {
+              likeCount--;
+            }
+          });
+        }
+      } else {
+        await supabase.from('post_likes').insert({
+          'post_id': postId,
+          'user_id': userId,
+        });
+
+        if (mounted) {
+          setState(() {
+            liked = true;
+            likeCount++;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Like failed: $e'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          loadingLike = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    loadLikeData();
+
+    final profile =
+        widget.post['profiles'] as Map<String, dynamic>?;
+
+    final fullName =
+        profile?['full_name']?.toString().trim();
+
+    final username =
+        profile?['username']?.toString().trim();
 
     final displayName =
         (fullName != null && fullName.isNotEmpty)
@@ -389,8 +493,11 @@ class _PostCard extends StatelessWidget {
                 ? username
                 : 'User';
 
-    final content = post['content']?.toString() ?? '';
-    final avatarUrl = profile?['avatar_url']?.toString();
+    final content =
+        widget.post['content']?.toString() ?? '';
+
+    final avatarUrl =
+        profile?['avatar_url']?.toString();
 
     return Container(
       margin: const EdgeInsets.fromLTRB(20, 6, 20, 12),
@@ -415,12 +522,11 @@ class _PostCard extends StatelessWidget {
                 _Avatar(
                   avatarUrl: avatarUrl,
                 ),
-
                 const SizedBox(width: 12),
-
                 Expanded(
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment:
+                        CrossAxisAlignment.start,
                     children: [
                       Text(
                         displayName,
@@ -431,7 +537,7 @@ class _PostCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 3),
                       Text(
-                        timeText,
+                        widget.timeText,
                         style: const TextStyle(
                           color: Colors.grey,
                           fontSize: 12,
@@ -440,7 +546,6 @@ class _PostCard extends StatelessWidget {
                     ],
                   ),
                 ),
-
                 IconButton(
                   onPressed: () {},
                   icon: const Icon(Icons.more_horiz),
@@ -450,7 +555,6 @@ class _PostCard extends StatelessWidget {
 
             if (content.isNotEmpty) ...[
               const SizedBox(height: 16),
-
               Text(
                 content,
                 style: const TextStyle(
@@ -460,14 +564,15 @@ class _PostCard extends StatelessWidget {
               ),
             ],
 
-            if (post['image_url'] != null &&
-                post['image_url'].toString().isNotEmpty) ...[
+            if (widget.post['image_url'] != null &&
+                widget.post['image_url']
+                    .toString()
+                    .isNotEmpty) ...[
               const SizedBox(height: 14),
-
               ClipRRect(
                 borderRadius: BorderRadius.circular(16),
                 child: Image.network(
-                  post['image_url'].toString(),
+                  widget.post['image_url'].toString(),
                   width: double.infinity,
                   fit: BoxFit.cover,
                   errorBuilder: (_, __, ___) {
@@ -487,6 +592,20 @@ class _PostCard extends StatelessWidget {
 
             const SizedBox(height: 14),
 
+            Row(
+              children: [
+                Text(
+                  '$likeCount ${likeCount == 1 ? 'like' : 'likes'}',
+                  style: const TextStyle(
+                    color: Colors.grey,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 8),
+
             const Divider(height: 1),
 
             const SizedBox(height: 8),
@@ -494,9 +613,13 @@ class _PostCard extends StatelessWidget {
             Row(
               children: [
                 _ActionButton(
-                  icon: Icons.favorite_border,
+                  icon: liked
+                      ? Icons.favorite
+                      : Icons.favorite_border,
                   label: 'Like',
-                  onTap: () {},
+                  active: liked,
+                  loading: loadingLike,
+                  onTap: toggleLike,
                 ),
                 _ActionButton(
                   icon: Icons.chat_bubble_outline,
@@ -586,12 +709,15 @@ class _FeedTab extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 11),
         decoration: BoxDecoration(
-          color: selected ? Colors.white : Colors.transparent,
+          color: selected
+              ? Colors.white
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
           boxShadow: selected
               ? [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.04),
+                    color:
+                        Colors.black.withValues(alpha: 0.04),
                     blurRadius: 5,
                   ),
                 ]
@@ -601,7 +727,9 @@ class _FeedTab extends StatelessWidget {
           title,
           textAlign: TextAlign.center,
           style: TextStyle(
-            fontWeight: selected ? FontWeight.bold : FontWeight.w500,
+            fontWeight: selected
+                ? FontWeight.bold
+                : FontWeight.w500,
             color: selected
                 ? const Color(0xFF4F64A0)
                 : Colors.grey,
@@ -616,35 +744,53 @@ class _ActionButton extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
+  final bool active;
+  final bool loading;
 
   const _ActionButton({
     required this.icon,
     required this.label,
     required this.onTap,
+    this.active = false,
+    this.loading = false,
   });
 
   @override
   Widget build(BuildContext context) {
     return Expanded(
       child: InkWell(
-        onTap: onTap,
+        onTap: loading ? null : onTap,
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 8),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisAlignment:
+                MainAxisAlignment.center,
             children: [
-              Icon(
-                icon,
-                size: 20,
-                color: Colors.grey,
-              ),
+              if (loading)
+                const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                  ),
+                )
+              else
+                Icon(
+                  icon,
+                  size: 20,
+                  color: active
+                      ? Colors.red
+                      : Colors.grey,
+                ),
               const SizedBox(width: 6),
               Text(
                 label,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13,
-                  color: Colors.grey,
+                  color: active
+                      ? Colors.red
+                      : Colors.grey,
                 ),
               ),
             ],
