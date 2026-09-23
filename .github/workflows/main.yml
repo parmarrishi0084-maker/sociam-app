@@ -11,68 +11,58 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout
       - name: Checkout
         uses: actions/checkout@v4
 
-      # 2. Java
       - name: Setup Java
         uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: "17"
 
-      # 3. Flutter
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
 
-      # 4. Create Android project
       - name: Create Android project
         run: |
           if [ ! -d "android" ]; then
             flutter create --platforms=android --org com.sociam.app .
           fi
 
-      # 5. Check Android Internet permission
-      - name: Check Android Internet permission
+      - name: Check Internet permission
         run: |
-          echo "Checking AndroidManifest.xml..."
-          grep -n "android.permission.INTERNET" \
-            android/app/src/main/AndroidManifest.xml || true
+          echo "Checking AndroidManifest.xml"
+          grep -n "android.permission.INTERNET" android/app/src/main/AndroidManifest.xml || true
 
-      # 6. Install dependencies
       - name: Install dependencies
         run: flutter pub get
 
-      # 7. Analyze
       - name: Analyze
         run: flutter analyze lib --no-fatal-infos --no-fatal-warnings
 
-      # 8. Build APK
       - name: Build APK
         run: |
           flutter build apk --release \
             --dart-define=SUPABASE_URL="${{ secrets.SUPABASE_URL }}" \
             --dart-define=SUPABASE_ANON_KEY="${{ secrets.SUPABASE_ANON_KEY }}"
 
-      # 9. Build AAB
       - name: Build AAB
         run: |
           flutter build appbundle --release \
             --dart-define=SUPABASE_URL="${{ secrets.SUPABASE_URL }}" \
             --dart-define=SUPABASE_ANON_KEY="${{ secrets.SUPABASE_ANON_KEY }}"
 
-      # 10. Upload APK
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: Sociam-APK
           path: build/app/outputs/flutter-apk/app-release.apk
 
-      # 11. Upload AAB
       - name: Upload AAB
         uses: actions/upload-artifact@v4
-        with
+        with:
+          name: Sociam-AAB
+          path: build/app/outputs/bundle/release/app-release.aab
