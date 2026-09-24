@@ -9,16 +9,16 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final supabase = Supabase.instance.client;
+  final SupabaseClient supabase = Supabase.instance.client;
 
-  late Future<List<Map<String, dynamic>>> _postsFuture;
+  late Future<List<Map<String, dynamic>>> postsFuture;
 
-  int _selectedIndex = 0;
+  int selectedIndex = 0;
 
   @override
   void initState() {
     super.initState();
-    _postsFuture = loadPosts();
+    postsFuture = loadPosts();
   }
 
   Future<List<Map<String, dynamic>>> loadPosts() async {
@@ -37,7 +37,7 @@ class _HomePageState extends State<HomePage> {
     final future = loadPosts();
 
     setState(() {
-      _postsFuture = future;
+      postsFuture = future;
     });
 
     await future;
@@ -47,15 +47,13 @@ class _HomePageState extends State<HomePage> {
     if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-      ),
+      SnackBar(content: Text(message)),
     );
   }
 
-  void onNavigationTap(int index) {
+  void navigationTap(int index) {
     setState(() {
-      _selectedIndex = index;
+      selectedIndex = index;
     });
 
     if (index == 0) return;
@@ -97,7 +95,7 @@ class _HomePageState extends State<HomePage> {
       body: RefreshIndicator(
         onRefresh: refreshFeed,
         child: FutureBuilder<List<Map<String, dynamic>>>(
-          future: _postsFuture,
+          future: postsFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(
@@ -110,35 +108,33 @@ class _HomePageState extends State<HomePage> {
                 physics: const AlwaysScrollableScrollPhysics(),
                 children: [
                   const SizedBox(height: 150),
-                  Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        children: [
-                          const Icon(
-                            Icons.error_outline,
-                            size: 50,
+                  Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      children: [
+                        const Icon(
+                          Icons.error_outline,
+                          size: 50,
+                        ),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Feed load failed',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
                           ),
-                          const SizedBox(height: 16),
-                          const Text(
-                            'Feed load failed',
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            snapshot.error.toString(),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 20),
-                          FilledButton(
-                            onPressed: refreshFeed,
-                            child: const Text('Retry'),
-                          ),
-                        ],
-                      ),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          snapshot.error.toString(),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 20),
+                        FilledButton(
+                          onPressed: refreshFeed,
+                          child: const Text('Retry'),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -186,7 +182,7 @@ class _HomePageState extends State<HomePage> {
               ),
               itemCount: posts.length,
               itemBuilder: (context, index) {
-                return _PostCard(
+                return PostCard(
                   key: ValueKey(posts[index]['id']),
                   post: posts[index],
                 );
@@ -196,8 +192,8 @@ class _HomePageState extends State<HomePage> {
         ),
       ),
       bottomNavigationBar: NavigationBar(
-        selectedIndex: _selectedIndex,
-        onDestinationSelected: onNavigationTap,
+        selectedIndex: selectedIndex,
+        onDestinationSelected: navigationTap,
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.home_outlined),
@@ -230,24 +226,24 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
-class _PostCard extends StatefulWidget {
+class PostCard extends StatefulWidget {
   final Map<String, dynamic> post;
 
-  const _PostCard({
+  const PostCard({
     super.key,
     required this.post,
   });
 
   @override
-  State<_PostCard> createState() => _PostCardState();
+  State<PostCard> createState() => _PostCardState();
 }
 
-class _PostCardState extends State<_PostCard> {
-  final supabase = Supabase.instance.client;
+class _PostCardState extends State<PostCard> {
+  final SupabaseClient supabase = Supabase.instance.client;
 
   bool liked = false;
-  int likeCount = 0;
   bool loadingLike = false;
+  int likeCount = 0;
 
   @override
   void initState() {
@@ -274,7 +270,6 @@ class _PostCardState extends State<_PostCard> {
 
       setState(() {
         likeCount = rows.length;
-
         liked = userId != null &&
             rows.any(
               (row) => row['user_id']?.toString() == userId,
@@ -299,8 +294,8 @@ class _PostCardState extends State<_PostCard> {
       return;
     }
 
-    final previousLiked = liked;
-    final previousCount = likeCount;
+    final oldLiked = liked;
+    final oldCount = likeCount;
 
     setState(() {
       loadingLike = true;
@@ -314,7 +309,7 @@ class _PostCardState extends State<_PostCard> {
     });
 
     try {
-      if (previousLiked) {
+      if (oldLiked) {
         await supabase
             .from('post_likes')
             .delete()
@@ -326,15 +321,15 @@ class _PostCardState extends State<_PostCard> {
           'user_id': userId,
         });
       }
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
 
       setState(() {
-        liked = previousLiked;
-        likeCount = previousCount;
+        liked = oldLiked;
+        likeCount = oldCount;
       });
 
-      showMessage('Like failed. Please try again.');
+      showMessage('Like failed.');
     } finally {
       if (mounted) {
         setState(() {
@@ -344,7 +339,7 @@ class _PostCardState extends State<_PostCard> {
     }
   }
 
-  void showComments() {
+  void openComments() {
     final postId = widget.post['id'];
 
     if (postId == null) {
@@ -356,8 +351,8 @@ class _PostCardState extends State<_PostCard> {
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (context) {
-        return _CommentsSheet(
+      builder: (_) {
+        return CommentsSheet(
           postId: postId,
         );
       },
@@ -368,10 +363,29 @@ class _PostCardState extends State<_PostCard> {
     if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-      ),
+      SnackBar(content: Text(message)),
     );
+  }
+
+  String getName() {
+    final profile = widget.post['profiles'];
+
+    if (profile is Map) {
+      final fullName = profile['full_name'];
+      final username = profile['username'];
+
+      if (fullName != null &&
+          fullName.toString().trim().isNotEmpty) {
+        return fullName.toString();
+      }
+
+      if (username != null &&
+          username.toString().trim().isNotEmpty) {
+        return username.toString();
+      }
+    }
+
+    return 'Sociam User';
   }
 
   String getUsername() {
@@ -384,34 +398,12 @@ class _PostCardState extends State<_PostCard> {
           username.toString().trim().isNotEmpty) {
         return username.toString();
       }
-
-      final fullName = profile['full_name'];
-
-      if (fullName != null &&
-          fullName.toString().trim().isNotEmpty) {
-        return fullName.toString();
-      }
     }
 
-    return 'Sociam User';
+    return 'sociam_user';
   }
 
-  String getFullName() {
-    final profile = widget.post['profiles'];
-
-    if (profile is Map) {
-      final fullName = profile['full_name'];
-
-      if (fullName != null &&
-          fullName.toString().trim().isNotEmpty) {
-        return fullName.toString();
-      }
-    }
-
-    return getUsername();
-  }
-
-  String getAvatarUrl() {
+  String getAvatar() {
     final profile = widget.post['profiles'];
 
     if (profile is Map) {
@@ -428,16 +420,9 @@ class _PostCardState extends State<_PostCard> {
 
   @override
   Widget build(BuildContext context) {
-    final content =
-        widget.post['content']?.toString() ?? '';
-
-    final imageUrl =
-        widget.post['image_url']?.toString() ?? '';
-
-    final videoUrl =
-        widget.post['video_url']?.toString() ?? '';
-
-    final avatarUrl = getAvatarUrl();
+    final content = widget.post['content']?.toString() ?? '';
+    final imageUrl = widget.post['image_url']?.toString() ?? '';
+    final videoUrl = widget.post['video_url']?.toString() ?? '';
 
     return Card(
       margin: const EdgeInsets.symmetric(
@@ -452,9 +437,9 @@ class _PostCardState extends State<_PostCard> {
           children: [
             Row(
               children: [
-                _Avatar(
-                  imageUrl: avatarUrl,
-                  name: getUsername(),
+                Avatar(
+                  imageUrl: getAvatar(),
+                  name: getName(),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -463,7 +448,7 @@ class _PostCardState extends State<_PostCard> {
                         CrossAxisAlignment.start,
                     children: [
                       Text(
-                        getFullName(),
+                        getName(),
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
@@ -489,7 +474,9 @@ class _PostCardState extends State<_PostCard> {
                 ),
               ],
             ),
+
             const SizedBox(height: 12),
+
             if (content.trim().isNotEmpty)
               Text(
                 content,
@@ -497,17 +484,16 @@ class _PostCardState extends State<_PostCard> {
                   fontSize: 16,
                 ),
               ),
+
             if (imageUrl.trim().isNotEmpty) ...[
               const SizedBox(height: 12),
               ClipRRect(
-                borderRadius:
-                    BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(12),
                 child: Image.network(
                   imageUrl,
                   width: double.infinity,
                   fit: BoxFit.cover,
-                  errorBuilder:
-                      (context, error, stackTrace) {
+                  errorBuilder: (_, __, ___) {
                     return Container(
                       height: 200,
                       alignment: Alignment.center,
@@ -521,6 +507,7 @@ class _PostCardState extends State<_PostCard> {
                 ),
               ),
             ],
+
             if (videoUrl.trim().isNotEmpty) ...[
               const SizedBox(height: 12),
               Container(
@@ -528,8 +515,7 @@ class _PostCardState extends State<_PostCard> {
                 height: 180,
                 decoration: BoxDecoration(
                   color: Colors.black,
-                  borderRadius:
-                      BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Center(
                   child: Icon(
@@ -540,487 +526,28 @@ class _PostCardState extends State<_PostCard> {
                 ),
               ),
             ],
+
             const SizedBox(height: 8),
+
             Row(
               children: [
-                _CircleButton(
+                CircleButton(
                   icon: liked
                       ? Icons.favorite
                       : Icons.favorite_border,
                   active: liked,
                   onTap: toggleLike,
                 ),
-                const SizedBox(width: 4),
+
+                const SizedBox(width: 2),
+
                 Text(
                   '$likeCount',
                   style: const TextStyle(
                     fontWeight: FontWeight.w500,
                   ),
                 ),
+
                 const SizedBox(width: 12),
-                _CircleButton(
-                  icon: Icons.comment_outlined,
-                  onTap: showComments,
-                ),
-                const SizedBox(width: 12),
-                _CircleButton(
-                  icon: Icons.share_outlined,
-                  onTap: () {
-                    showMessage(
-                      'Share coming soon',
-                    );
-                  },
-                ),
-                const Spacer(),
-                if (loadingLike)
-                  const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                    ),
-                  ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
-class _CommentsSheet extends StatefulWidget {
-  final dynamic postId;
-
-  const _CommentsSheet({
-    required this.postId,
-  });
-
-  @override
-  State<_CommentsSheet> createState() =>
-      _CommentsSheetState();
-}
-
-class _CommentsSheetState
-    extends State<_CommentsSheet> {
-  final supabase = Supabase.instance.client;
-
-  final TextEditingController commentController =
-      TextEditingController();
-
-  late Future<List<Map<String, dynamic>>> commentsFuture;
-
-  bool sending = false;
-  bool liking = false;
-
-  int? replyingTo;
-  String replyingToName = '';
-
-  String? commentsError;
-
-  final Set<int> likedComments = {};
-  final Map<int, int> commentLikeCounts = {};
-  final Map<int, int> replyCounts = {};
-
-  @override
-  void initState() {
-    super.initState();
-    commentsFuture = loadComments();
-  }
-
-  @override
-  void dispose() {
-    commentController.dispose();
-    super.dispose();
-  }
-
-  // ------------------------------------------------------------
-  // LOAD COMMENTS
-  // ------------------------------------------------------------
-
-  Future<List<Map<String, dynamic>>> loadComments() async {
-    commentsError = null;
-
-    try {
-      // IMPORTANT:
-      // Profile relation is NOT requested here.
-      // We load comments first and profiles separately.
-      final data = await supabase
-          .from('comments')
-          .select(
-            'id, content, created_at, user_id, parent_comment_id',
-          )
-          .eq('post_id', widget.postId)
-          .order('created_at', ascending: true);
-
-      final comments =
-          List<Map<String, dynamic>>.from(data);
-
-      // Load profiles separately.
-      await loadCommentProfiles(comments);
-
-      // Load likes separately.
-      await loadCommentLikes(comments);
-
-      // Calculate reply counts.
-      replyCounts.clear();
-
-      for (final comment in comments) {
-        final parentId =
-            comment['parent_comment_id'];
-
-        if (parentId != null) {
-          final parent =
-              int.tryParse(parentId.toString());
-
-          if (parent != null) {
-            replyCounts[parent] =
-                (replyCounts[parent] ?? 0) + 1;
-          }
-        }
-      }
-
-      return comments;
-    } catch (e) {
-      commentsError = e.toString();
-
-      debugPrint(
-        'COMMENTS LOAD ERROR: $e',
-      );
-
-      rethrow;
-    }
-  }
-
-  // ------------------------------------------------------------
-  // LOAD PROFILES SEPARATELY
-  // ------------------------------------------------------------
-
-  Future<void> loadCommentProfiles(
-    List<Map<String, dynamic>> comments,
-  ) async {
-    if (comments.isEmpty) return;
-
-    final userIds = comments
-        .map((comment) => comment['user_id'])
-        .where((id) => id != null)
-        .map((id) => id.toString())
-        .toSet()
-        .toList();
-
-    if (userIds.isEmpty) return;
-
-    try {
-      final data = await supabase
-          .from('profiles')
-          .select(
-            'id, username, full_name, avatar_url',
-          )
-          .inFilter('id', userIds);
-
-      final profiles =
-          List<Map<String, dynamic>>.from(data);
-
-      final profileMap =
-          <String, Map<String, dynamic>>{};
-
-      for (final profile in profiles) {
-        final id = profile['id']?.toString();
-
-        if (id != null) {
-          profileMap[id] = profile;
-        }
-      }
-
-      for (final comment in comments) {
-        final userId =
-            comment['user_id']?.toString();
-
-        comment['profile_data'] =
-            userId != null
-                ? profileMap[userId]
-                : null;
-      }
-    } catch (e) {
-      // Profile failure should NOT stop comments.
-      debugPrint(
-        'COMMENT PROFILE LOAD ERROR: $e',
-      );
-
-      for (final comment in comments) {
-        comment['profile_data'] = null;
-      }
-    }
-  }
-
-  // ------------------------------------------------------------
-  // LOAD COMMENT LIKES
-  // ------------------------------------------------------------
-
-  Future<void> loadCommentLikes(
-    List<Map<String, dynamic>> comments,
-  ) async {
-    likedComments.clear();
-    commentLikeCounts.clear();
-
-    if (comments.isEmpty) return;
-
-    final commentIds = comments
-        .map((comment) => comment['id'])
-        .where((id) => id != null)
-        .toList();
-
-    if (commentIds.isEmpty) return;
-
-    try {
-      final data = await supabase
-          .from('comment_likes')
-          .select('comment_id, user_id')
-          .inFilter(
-            'comment_id',
-            commentIds,
-          );
-
-      final rows =
-          List<Map<String, dynamic>>.from(data);
-
-      final currentUserId =
-          supabase.auth.currentUser?.id;
-
-      for (final row in rows) {
-        final commentId =
-            int.tryParse(
-          row['comment_id'].toString(),
-        );
-
-        if (commentId == null) continue;
-
-        commentLikeCounts[commentId] =
-            (commentLikeCounts[commentId] ?? 0) + 1;
-
-        if (currentUserId != null &&
-            row['user_id']?.toString() ==
-                currentUserId) {
-          likedComments.add(commentId);
-        }
-      }
-    } catch (e) {
-      // Comments still work if likes fail.
-      debugPrint(
-        'COMMENT LIKE LOAD ERROR: $e',
-      );
-    }
-  }
-
-  // ------------------------------------------------------------
-  // REFRESH
-  // ------------------------------------------------------------
-
-  Future<void> refreshComments() async {
-    final future = loadComments();
-
-    setState(() {
-      commentsFuture = future;
-    });
-
-    await future;
-  }
-
-  // ------------------------------------------------------------
-  // COMMENT LIKE
-  // ------------------------------------------------------------
-
-  Future<void> toggleCommentLike(
-    int commentId,
-  ) async {
-    if (liking) return;
-
-    final userId =
-        supabase.auth.currentUser?.id;
-
-    if (userId == null) {
-      showMessage('Please login first.');
-      return;
-    }
-
-    final wasLiked =
-        likedComments.contains(commentId);
-
-    final oldCount =
-        commentLikeCounts[commentId] ?? 0;
-
-    setState(() {
-      liking = true;
-
-      if (wasLiked) {
-        likedComments.remove(commentId);
-
-        commentLikeCounts[commentId] =
-            oldCount > 0
-                ? oldCount - 1
-                : 0;
-      } else {
-        likedComments.add(commentId);
-
-        commentLikeCounts[commentId] =
-            oldCount + 1;
-      }
-    });
-
-    try {
-      if (wasLiked) {
-        await supabase
-            .from('comment_likes')
-            .delete()
-            .eq(
-              'comment_id',
-              commentId,
-            )
-            .eq(
-              'user_id',
-              userId,
-            );
-      } else {
-        await supabase
-            .from('comment_likes')
-            .insert({
-          'comment_id': commentId,
-          'user_id': userId,
-        });
-      }
-    } catch (e) {
-      if (!mounted) return;
-
-      setState(() {
-        if (wasLiked) {
-          likedComments.add(commentId);
-        } else {
-          likedComments.remove(commentId);
-        }
-
-        commentLikeCounts[commentId] =
-            oldCount;
-      });
-
-      showMessage(
-        'Comment like failed: $e',
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          liking = false;
-        });
-      }
-    }
-  }
-
-  // ------------------------------------------------------------
-  // SEND COMMENT / REPLY
-  // ------------------------------------------------------------
-
-  Future<void> sendComment() async {
-    final content =
-        commentController.text.trim();
-
-    if (content.isEmpty) return;
-
-    final userId =
-        supabase.auth.currentUser?.id;
-
-    if (userId == null) {
-      showMessage('Please login first.');
-      return;
-    }
-
-    if (sending) return;
-
-    final parentId = replyingTo;
-
-    setState(() {
-      sending = true;
-    });
-
-    try {
-      await supabase.from('comments').insert({
-        'post_id': widget.postId,
-        'user_id': userId,
-        'content': content,
-        'parent_comment_id': parentId,
-      });
-
-      commentController.clear();
-
-      setState(() {
-        replyingTo = null;
-        replyingToName = '';
-      });
-
-      await refreshComments();
-    } catch (e) {
-      showMessage(
-        'Comment failed: $e',
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          sending = false;
-        });
-      }
-    }
-  }
-
-  // ------------------------------------------------------------
-  // REPLY
-  // ------------------------------------------------------------
-
-  void startReply(
-    int commentId,
-    String name,
-  ) {
-    setState(() {
-      replyingTo = commentId;
-      replyingToName = name;
-    });
-
-    FocusScope.of(context).requestFocus(
-      FocusNode(),
-    );
-  }
-
-  void cancelReply() {
-    setState(() {
-      replyingTo = null;
-      replyingToName = '';
-    });
-  }
-
-  // ------------------------------------------------------------
-  // MESSAGE
-  // ------------------------------------------------------------
-
-  void showMessage(String message) {
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-      ),
-    );
-  }
-
-  // ------------------------------------------------------------
-  // NAME
-  // ------------------------------------------------------------
-
-  String getName(
-    Map<String, dynamic> comment,
-  ) {
-    final profile =
-        comment['profile_data'];
-
-    if (profile is Map) {
-      final fullName =
-          profile['full_name'];
-
-      if (fullName != null &&
-          fullName.to
+                Circle
