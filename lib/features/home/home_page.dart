@@ -9,16 +9,16 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final SupabaseClient supabase = Supabase.instance.client;
+  final supabase = Supabase.instance.client;
 
-  late Future<List<Map<String, dynamic>>> postsFuture;
+  late Future<List<Map<String, dynamic>>> _postsFuture;
 
-  int selectedIndex = 0;
+  int _selectedIndex = 0;
 
   @override
   void initState() {
     super.initState();
-    postsFuture = loadPosts();
+    _postsFuture = loadPosts();
   }
 
   Future<List<Map<String, dynamic>>> loadPosts() async {
@@ -37,7 +37,7 @@ class _HomePageState extends State<HomePage> {
     final future = loadPosts();
 
     setState(() {
-      postsFuture = future;
+      _postsFuture = future;
     });
 
     await future;
@@ -47,13 +47,15 @@ class _HomePageState extends State<HomePage> {
     if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
+      SnackBar(
+        content: Text(message),
+      ),
     );
   }
 
-  void navigationTap(int index) {
+  void onNavigationTap(int index) {
     setState(() {
-      selectedIndex = index;
+      _selectedIndex = index;
     });
 
     if (index == 0) return;
@@ -95,7 +97,7 @@ class _HomePageState extends State<HomePage> {
       body: RefreshIndicator(
         onRefresh: refreshFeed,
         child: FutureBuilder<List<Map<String, dynamic>>>(
-          future: postsFuture,
+          future: _postsFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(
@@ -108,33 +110,35 @@ class _HomePageState extends State<HomePage> {
                 physics: const AlwaysScrollableScrollPhysics(),
                 children: [
                   const SizedBox(height: 150),
-                  Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      children: [
-                        const Icon(
-                          Icons.error_outline,
-                          size: 50,
-                        ),
-                        const SizedBox(height: 16),
-                        const Text(
-                          'Feed load failed',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
+                  Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        children: [
+                          const Icon(
+                            Icons.error_outline,
+                            size: 50,
                           ),
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          snapshot.error.toString(),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 20),
-                        FilledButton(
-                          onPressed: refreshFeed,
-                          child: const Text('Retry'),
-                        ),
-                      ],
+                          const SizedBox(height: 16),
+                          const Text(
+                            'Feed load failed',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            snapshot.error.toString(),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 20),
+                          FilledButton(
+                            onPressed: refreshFeed,
+                            child: const Text('Retry'),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],
@@ -182,7 +186,7 @@ class _HomePageState extends State<HomePage> {
               ),
               itemCount: posts.length,
               itemBuilder: (context, index) {
-                return PostCard(
+                return _PostCard(
                   key: ValueKey(posts[index]['id']),
                   post: posts[index],
                 );
@@ -192,8 +196,8 @@ class _HomePageState extends State<HomePage> {
         ),
       ),
       bottomNavigationBar: NavigationBar(
-        selectedIndex: selectedIndex,
-        onDestinationSelected: navigationTap,
+        selectedIndex: _selectedIndex,
+        onDestinationSelected: onNavigationTap,
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.home_outlined),
@@ -226,24 +230,24 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
-class PostCard extends StatefulWidget {
+class _PostCard extends StatefulWidget {
   final Map<String, dynamic> post;
 
-  const PostCard({
+  const _PostCard({
     super.key,
     required this.post,
   });
 
   @override
-  State<PostCard> createState() => _PostCardState();
+  State<_PostCard> createState() => _PostCardState();
 }
 
-class _PostCardState extends State<PostCard> {
-  final SupabaseClient supabase = Supabase.instance.client;
+class _PostCardState extends State<_PostCard> {
+  final supabase = Supabase.instance.client;
 
   bool liked = false;
-  bool loadingLike = false;
   int likeCount = 0;
+  bool loadingLike = false;
 
   @override
   void initState() {
@@ -270,6 +274,7 @@ class _PostCardState extends State<PostCard> {
 
       setState(() {
         likeCount = rows.length;
+
         liked = userId != null &&
             rows.any(
               (row) => row['user_id']?.toString() == userId,
@@ -294,8 +299,8 @@ class _PostCardState extends State<PostCard> {
       return;
     }
 
-    final oldLiked = liked;
-    final oldCount = likeCount;
+    final previousLiked = liked;
+    final previousCount = likeCount;
 
     setState(() {
       loadingLike = true;
@@ -309,7 +314,7 @@ class _PostCardState extends State<PostCard> {
     });
 
     try {
-      if (oldLiked) {
+      if (previousLiked) {
         await supabase
             .from('post_likes')
             .delete()
@@ -321,15 +326,15 @@ class _PostCardState extends State<PostCard> {
           'user_id': userId,
         });
       }
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
 
       setState(() {
-        liked = oldLiked;
-        likeCount = oldCount;
+        liked = previousLiked;
+        likeCount = previousCount;
       });
 
-      showMessage('Like failed.');
+      showMessage('Like failed. Please try again.');
     } finally {
       if (mounted) {
         setState(() {
@@ -339,7 +344,7 @@ class _PostCardState extends State<PostCard> {
     }
   }
 
-  void openComments() {
+  void showComments() {
     final postId = widget.post['id'];
 
     if (postId == null) {
@@ -351,8 +356,8 @@ class _PostCardState extends State<PostCard> {
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (_) {
-        return CommentsSheet(
+      builder: (context) {
+        return _CommentsSheet(
           postId: postId,
         );
       },
@@ -363,29 +368,10 @@ class _PostCardState extends State<PostCard> {
     if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
+      SnackBar(
+        content: Text(message),
+      ),
     );
-  }
-
-  String getName() {
-    final profile = widget.post['profiles'];
-
-    if (profile is Map) {
-      final fullName = profile['full_name'];
-      final username = profile['username'];
-
-      if (fullName != null &&
-          fullName.toString().trim().isNotEmpty) {
-        return fullName.toString();
-      }
-
-      if (username != null &&
-          username.toString().trim().isNotEmpty) {
-        return username.toString();
-      }
-    }
-
-    return 'Sociam User';
   }
 
   String getUsername() {
@@ -398,12 +384,34 @@ class _PostCardState extends State<PostCard> {
           username.toString().trim().isNotEmpty) {
         return username.toString();
       }
+
+      final fullName = profile['full_name'];
+
+      if (fullName != null &&
+          fullName.toString().trim().isNotEmpty) {
+        return fullName.toString();
+      }
     }
 
-    return 'sociam_user';
+    return 'Sociam User';
   }
 
-  String getAvatar() {
+  String getFullName() {
+    final profile = widget.post['profiles'];
+
+    if (profile is Map) {
+      final fullName = profile['full_name'];
+
+      if (fullName != null &&
+          fullName.toString().trim().isNotEmpty) {
+        return fullName.toString();
+      }
+    }
+
+    return getUsername();
+  }
+
+  String getAvatarUrl() {
     final profile = widget.post['profiles'];
 
     if (profile is Map) {
@@ -420,9 +428,16 @@ class _PostCardState extends State<PostCard> {
 
   @override
   Widget build(BuildContext context) {
-    final content = widget.post['content']?.toString() ?? '';
-    final imageUrl = widget.post['image_url']?.toString() ?? '';
-    final videoUrl = widget.post['video_url']?.toString() ?? '';
+    final content =
+        widget.post['content']?.toString() ?? '';
+
+    final imageUrl =
+        widget.post['image_url']?.toString() ?? '';
+
+    final videoUrl =
+        widget.post['video_url']?.toString() ?? '';
+
+    final avatarUrl = getAvatarUrl();
 
     return Card(
       margin: const EdgeInsets.symmetric(
@@ -437,9 +452,9 @@ class _PostCardState extends State<PostCard> {
           children: [
             Row(
               children: [
-                Avatar(
-                  imageUrl: getAvatar(),
-                  name: getName(),
+                _Avatar(
+                  imageUrl: avatarUrl,
+                  name: getUsername(),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -448,7 +463,7 @@ class _PostCardState extends State<PostCard> {
                         CrossAxisAlignment.start,
                     children: [
                       Text(
-                        getName(),
+                        getFullName(),
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
@@ -474,9 +489,7 @@ class _PostCardState extends State<PostCard> {
                 ),
               ],
             ),
-
             const SizedBox(height: 12),
-
             if (content.trim().isNotEmpty)
               Text(
                 content,
@@ -484,16 +497,17 @@ class _PostCardState extends State<PostCard> {
                   fontSize: 16,
                 ),
               ),
-
             if (imageUrl.trim().isNotEmpty) ...[
               const SizedBox(height: 12),
               ClipRRect(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius:
+                    BorderRadius.circular(12),
                 child: Image.network(
                   imageUrl,
                   width: double.infinity,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) {
+                  errorBuilder:
+                      (context, error, stackTrace) {
                     return Container(
                       height: 200,
                       alignment: Alignment.center,
@@ -507,7 +521,6 @@ class _PostCardState extends State<PostCard> {
                 ),
               ),
             ],
-
             if (videoUrl.trim().isNotEmpty) ...[
               const SizedBox(height: 12),
               Container(
@@ -515,7 +528,8 @@ class _PostCardState extends State<PostCard> {
                 height: 180,
                 decoration: BoxDecoration(
                   color: Colors.black,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius:
+                      BorderRadius.circular(12),
                 ),
                 child: const Center(
                   child: Icon(
@@ -526,28 +540,1035 @@ class _PostCardState extends State<PostCard> {
                 ),
               ),
             ],
-
             const SizedBox(height: 8),
-
             Row(
               children: [
-                CircleButton(
+                _CircleButton(
                   icon: liked
                       ? Icons.favorite
                       : Icons.favorite_border,
                   active: liked,
                   onTap: toggleLike,
                 ),
-
-                const SizedBox(width: 2),
-
+                const SizedBox(width: 4),
                 Text(
                   '$likeCount',
                   style: const TextStyle(
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-
                 const SizedBox(width: 12),
+                _CircleButton(
+                  icon: Icons.comment_outlined,
+                  onTap: showComments,
+                ),
+                const SizedBox(width: 12),
+                _CircleButton(
+                  icon: Icons.share_outlined,
+                  onTap: () {
+                    showMessage(
+                      'Share coming soon',
+                    );
+                  },
+                ),
+                const Spacer(),
+                if (loadingLike)
+                  const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
-                Circle
+class _CommentsSheet extends StatefulWidget {
+  final dynamic postId;
+
+  const _CommentsSheet({
+    required this.postId,
+  });
+
+  @override
+  State<_CommentsSheet> createState() =>
+      _CommentsSheetState();
+}
+
+class _CommentsSheetState
+    extends State<_CommentsSheet> {
+  final supabase = Supabase.instance.client;
+
+  final TextEditingController commentController =
+      TextEditingController();
+
+  late Future<List<Map<String, dynamic>>> commentsFuture;
+
+  bool sending = false;
+  bool liking = false;
+
+  int? replyingTo;
+  String replyingToName = '';
+
+  String? commentsError;
+
+  final Set<int> likedComments = {};
+  final Map<int, int> commentLikeCounts = {};
+  final Map<int, int> replyCounts = {};
+
+  @override
+  void initState() {
+    super.initState();
+    commentsFuture = loadComments();
+  }
+
+  @override
+  void dispose() {
+    commentController.dispose();
+    super.dispose();
+  }
+
+  // ------------------------------------------------------------
+  // LOAD COMMENTS
+  // ------------------------------------------------------------
+
+  Future<List<Map<String, dynamic>>> loadComments() async {
+    commentsError = null;
+
+    try {
+      // IMPORTANT:
+      // Profile relation is NOT requested here.
+      // We load comments first and profiles separately.
+      final data = await supabase
+          .from('comments')
+          .select(
+            'id, content, created_at, user_id, parent_comment_id',
+          )
+          .eq('post_id', widget.postId)
+          .order('created_at', ascending: true);
+
+      final comments =
+          List<Map<String, dynamic>>.from(data);
+
+      // Load profiles separately.
+      await loadCommentProfiles(comments);
+
+      // Load likes separately.
+      await loadCommentLikes(comments);
+
+      // Calculate reply counts.
+      replyCounts.clear();
+
+      for (final comment in comments) {
+        final parentId =
+            comment['parent_comment_id'];
+
+        if (parentId != null) {
+          final parent =
+              int.tryParse(parentId.toString());
+
+          if (parent != null) {
+            replyCounts[parent] =
+                (replyCounts[parent] ?? 0) + 1;
+          }
+        }
+      }
+
+      return comments;
+    } catch (e) {
+      commentsError = e.toString();
+
+      debugPrint(
+        'COMMENTS LOAD ERROR: $e',
+      );
+
+      rethrow;
+    }
+  }
+
+  // ------------------------------------------------------------
+  // LOAD PROFILES SEPARATELY
+  // ------------------------------------------------------------
+
+  Future<void> loadCommentProfiles(
+    List<Map<String, dynamic>> comments,
+  ) async {
+    if (comments.isEmpty) return;
+
+    final userIds = comments
+        .map((comment) => comment['user_id'])
+        .where((id) => id != null)
+        .map((id) => id.toString())
+        .toSet()
+        .toList();
+
+    if (userIds.isEmpty) return;
+
+    try {
+      final data = await supabase
+          .from('profiles')
+          .select(
+            'id, username, full_name, avatar_url',
+          )
+          .inFilter('id', userIds);
+
+      final profiles =
+          List<Map<String, dynamic>>.from(data);
+
+      final profileMap =
+          <String, Map<String, dynamic>>{};
+
+      for (final profile in profiles) {
+        final id = profile['id']?.toString();
+
+        if (id != null) {
+          profileMap[id] = profile;
+        }
+      }
+
+      for (final comment in comments) {
+        final userId =
+            comment['user_id']?.toString();
+
+        comment['profile_data'] =
+            userId != null
+                ? profileMap[userId]
+                : null;
+      }
+    } catch (e) {
+      // Profile failure should NOT stop comments.
+      debugPrint(
+        'COMMENT PROFILE LOAD ERROR: $e',
+      );
+
+      for (final comment in comments) {
+        comment['profile_data'] = null;
+      }
+    }
+  }
+
+  // ------------------------------------------------------------
+  // LOAD COMMENT LIKES
+  // ------------------------------------------------------------
+
+  Future<void> loadCommentLikes(
+    List<Map<String, dynamic>> comments,
+  ) async {
+    likedComments.clear();
+    commentLikeCounts.clear();
+
+    if (comments.isEmpty) return;
+
+    final commentIds = comments
+        .map((comment) => comment['id'])
+        .where((id) => id != null)
+        .toList();
+
+    if (commentIds.isEmpty) return;
+
+    try {
+      final data = await supabase
+          .from('comment_likes')
+          .select('comment_id, user_id')
+          .inFilter(
+            'comment_id',
+            commentIds,
+          );
+
+      final rows =
+          List<Map<String, dynamic>>.from(data);
+
+      final currentUserId =
+          supabase.auth.currentUser?.id;
+
+      for (final row in rows) {
+        final commentId =
+            int.tryParse(
+          row['comment_id'].toString(),
+        );
+
+        if (commentId == null) continue;
+
+        commentLikeCounts[commentId] =
+            (commentLikeCounts[commentId] ?? 0) + 1;
+
+        if (currentUserId != null &&
+            row['user_id']?.toString() ==
+                currentUserId) {
+          likedComments.add(commentId);
+        }
+      }
+    } catch (e) {
+      // Comments still work if likes fail.
+      debugPrint(
+        'COMMENT LIKE LOAD ERROR: $e',
+      );
+    }
+  }
+
+  // ------------------------------------------------------------
+  // REFRESH
+  // ------------------------------------------------------------
+
+  Future<void> refreshComments() async {
+    final future = loadComments();
+
+    setState(() {
+      commentsFuture = future;
+    });
+
+    await future;
+  }
+
+  // ------------------------------------------------------------
+  // COMMENT LIKE
+  // ------------------------------------------------------------
+
+  Future<void> toggleCommentLike(
+    int commentId,
+  ) async {
+    if (liking) return;
+
+    final userId =
+        supabase.auth.currentUser?.id;
+
+    if (userId == null) {
+      showMessage('Please login first.');
+      return;
+    }
+
+    final wasLiked =
+        likedComments.contains(commentId);
+
+    final oldCount =
+        commentLikeCounts[commentId] ?? 0;
+
+    setState(() {
+      liking = true;
+
+      if (wasLiked) {
+        likedComments.remove(commentId);
+
+        commentLikeCounts[commentId] =
+            oldCount > 0
+                ? oldCount - 1
+                : 0;
+      } else {
+        likedComments.add(commentId);
+
+        commentLikeCounts[commentId] =
+            oldCount + 1;
+      }
+    });
+
+    try {
+      if (wasLiked) {
+        await supabase
+            .from('comment_likes')
+            .delete()
+            .eq(
+              'comment_id',
+              commentId,
+            )
+            .eq(
+              'user_id',
+              userId,
+            );
+      } else {
+        await supabase
+            .from('comment_likes')
+            .insert({
+          'comment_id': commentId,
+          'user_id': userId,
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        if (wasLiked) {
+          likedComments.add(commentId);
+        } else {
+          likedComments.remove(commentId);
+        }
+
+        commentLikeCounts[commentId] =
+            oldCount;
+      });
+
+      showMessage(
+        'Comment like failed: $e',
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          liking = false;
+        });
+      }
+    }
+  }
+
+  // ------------------------------------------------------------
+  // SEND COMMENT / REPLY
+  // ------------------------------------------------------------
+
+  Future<void> sendComment() async {
+    final content =
+        commentController.text.trim();
+
+    if (content.isEmpty) return;
+
+    final userId =
+        supabase.auth.currentUser?.id;
+
+    if (userId == null) {
+      showMessage('Please login first.');
+      return;
+    }
+
+    if (sending) return;
+
+    final parentId = replyingTo;
+
+    setState(() {
+      sending = true;
+    });
+
+    try {
+      await supabase.from('comments').insert({
+        'post_id': widget.postId,
+        'user_id': userId,
+        'content': content,
+        'parent_comment_id': parentId,
+      });
+
+      commentController.clear();
+
+      setState(() {
+        replyingTo = null;
+        replyingToName = '';
+      });
+
+      await refreshComments();
+    } catch (e) {
+      showMessage(
+        'Comment failed: $e',
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          sending = false;
+        });
+      }
+    }
+  }
+
+  // ------------------------------------------------------------
+  // REPLY
+  // ------------------------------------------------------------
+
+  void startReply(
+    int commentId,
+    String name,
+  ) {
+    setState(() {
+      replyingTo = commentId;
+      replyingToName = name;
+    });
+
+    FocusScope.of(context).requestFocus(
+      FocusNode(),
+    );
+  }
+
+  void cancelReply() {
+    setState(() {
+      replyingTo = null;
+      replyingToName = '';
+    });
+  }
+
+  // ------------------------------------------------------------
+  // MESSAGE
+  // ------------------------------------------------------------
+
+  void showMessage(String message) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+      ),
+    );
+  }
+
+  // ------------------------------------------------------------
+  // NAME
+  // ------------------------------------------------------------
+
+  String getName(
+    Map<String, dynamic> comment,
+  ) {
+    final profile =
+        comment['profile_data'];
+
+    if (profile is Map) {
+      final fullName =
+          profile['full_name'];
+
+      if (fullName != null &&
+          fullName.toString().trim().isNotEmpty) {
+        return fullName.toString();
+      }
+
+      final username =
+          profile['username'];
+
+      if (username != null &&
+          username.toString().trim().isNotEmpty) {
+        return username.toString();
+      }
+    }
+
+    return 'Sociam User';
+  }
+
+  // ------------------------------------------------------------
+  // AVATAR
+  // ------------------------------------------------------------
+
+  String getAvatarUrl(
+    Map<String, dynamic> comment,
+  ) {
+    final profile =
+        comment['profile_data'];
+
+    if (profile is Map) {
+      final avatar =
+          profile['avatar_url'];
+
+      if (avatar != null &&
+          avatar.toString().trim().isNotEmpty) {
+        return avatar.toString();
+      }
+    }
+
+    return '';
+  }
+
+  bool isReply(
+    Map<String, dynamic> comment,
+  ) {
+    return comment['parent_comment_id'] != null;
+  }
+
+  // ------------------------------------------------------------
+  // BUILD
+  // ------------------------------------------------------------
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset =
+        MediaQuery.of(context).viewInsets.bottom;
+
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.only(
+          bottom: bottomInset,
+        ),
+        child: SizedBox(
+          height:
+              MediaQuery.of(context).size.height *
+                  0.75,
+          child: Column(
+            children: [
+              const Padding(
+                padding: EdgeInsets.all(12),
+                child: Text(
+                  'Comments',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+
+              const Divider(
+                height: 1,
+              ),
+
+              Expanded(
+                child: FutureBuilder<
+                    List<Map<String, dynamic>>>(
+                  future: commentsFuture,
+                  builder:
+                      (context, snapshot) {
+                    if (snapshot.connectionState ==
+                        ConnectionState.waiting) {
+                      return const Center(
+                        child:
+                            CircularProgressIndicator(),
+                      );
+                    }
+
+                    if (snapshot.hasError) {
+                      return SingleChildScrollView(
+                        physics:
+                            const AlwaysScrollableScrollPhysics(),
+                        padding:
+                            const EdgeInsets.all(20),
+                        child: Column(
+                          children: [
+                            const SizedBox(
+                              height: 60,
+                            ),
+
+                            const Icon(
+                              Icons.error_outline,
+                              size: 55,
+                            ),
+
+                            const SizedBox(
+                              height: 15,
+                            ),
+
+                            const Text(
+                              'Comments load failed',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight:
+                                    FontWeight.bold,
+                              ),
+                            ),
+
+                            const SizedBox(
+                              height: 12,
+                            ),
+
+                            Text(
+                              snapshot.error
+                                      ?.toString() ??
+                                  'Unknown error',
+                              textAlign:
+                                  TextAlign.center,
+                              style:
+                                  const TextStyle(
+                                fontSize: 13,
+                              ),
+                            ),
+
+                            const SizedBox(
+                              height: 20,
+                            ),
+
+                            FilledButton(
+                              onPressed:
+                                  refreshComments,
+                              child:
+                                  const Text('Retry'),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    final comments =
+                        snapshot.data ?? [];
+
+                    if (comments.isEmpty) {
+                      return const Center(
+                        child: Text(
+                          'No comments yet.',
+                        ),
+                      );
+                    }
+
+                    return RefreshIndicator(
+                      onRefresh:
+                          refreshComments,
+                      child:
+                          ListView.builder(
+                        padding:
+                            const EdgeInsets.all(
+                          12,
+                        ),
+                        itemCount:
+                            comments.length,
+                        itemBuilder:
+                            (context, index) {
+                          final comment =
+                              comments[index];
+
+                          final id =
+                              int.tryParse(
+                            comment['id']
+                                .toString(),
+                          );
+
+                          if (id == null) {
+                            return const SizedBox
+                                .shrink();
+                          }
+
+                          final name =
+                              getName(comment);
+
+                          final avatarUrl =
+                              getAvatarUrl(
+                            comment,
+                          );
+
+                          final liked =
+                              likedComments
+                                  .contains(id);
+
+                          final likeCount =
+                              commentLikeCounts[
+                                      id] ??
+                                  0;
+
+                          final replies =
+                              replyCounts[id] ??
+                                  0;
+
+                          final reply =
+                              isReply(comment);
+
+                          return Container(
+                            margin:
+                                EdgeInsets.only(
+                              left: reply
+                                  ? 32
+                                  : 0,
+                              bottom: 8,
+                            ),
+                            padding:
+                                const EdgeInsets
+                                    .all(10),
+                            decoration:
+                                BoxDecoration(
+                              color: Theme.of(
+                                context,
+                              )
+                                  .colorScheme
+                                  .surfaceContainerHighest,
+                              borderRadius:
+                                  BorderRadius
+                                      .circular(
+                                12,
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment:
+                                  CrossAxisAlignment
+                                      .start,
+                              children: [
+                                Row(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment
+                                          .start,
+                                  children: [
+                                    CircleAvatar(
+                                      radius: 18,
+                                      backgroundImage:
+                                          avatarUrl
+                                                  .isNotEmpty
+                                              ? NetworkImage(
+                                                  avatarUrl,
+                                                )
+                                              : null,
+                                      child:
+                                          avatarUrl
+                                                  .isEmpty
+                                              ? Text(
+                                                  name
+                                                      .substring(
+                                                    0,
+                                                    1,
+                                                  )
+                                                      .toUpperCase(),
+                                                )
+                                              : null,
+                                    ),
+
+                                    const SizedBox(
+                                      width: 10,
+                                    ),
+
+                                    Expanded(
+                                      child:
+                                          Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment
+                                                .start,
+                                        children: [
+                                          Text(
+                                            name,
+                                            style:
+                                                const TextStyle(
+                                              fontWeight:
+                                                  FontWeight
+                                                      .bold,
+                                            ),
+                                          ),
+
+                                          const SizedBox(
+                                            height: 4,
+                                          ),
+
+                                          Text(
+                                            comment[
+                                                        'content']
+                                                    ?.toString() ??
+                                                '',
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+
+                                const SizedBox(
+                                  height: 4,
+                                ),
+
+                                Row(
+                                  children: [
+                                    TextButton
+                                        .icon(
+                                      onPressed:
+                                          () =>
+                                              toggleCommentLike(
+                                        id,
+                                      ),
+                                      icon:
+                                          Icon(
+                                        liked
+                                            ? Icons
+                                                .favorite
+                                            : Icons
+                                                .favorite_border,
+                                        size: 18,
+                                        color:
+                                            liked
+                                                ? Colors
+                                                    .red
+                                                : null,
+                                      ),
+                                      label:
+                                          Text(
+                                        '$likeCount',
+                                      ),
+                                    ),
+
+                                    TextButton
+                                        .icon(
+                                      onPressed:
+                                          () =>
+                                              startReply(
+                                        id,
+                                        name,
+                                      ),
+                                      icon:
+                                          const Icon(
+                                        Icons
+                                            .reply_outlined,
+                                        size: 18,
+                                      ),
+                                      label:
+                                          const Text(
+                                        'Reply',
+                                      ),
+                                    ),
+
+                                    if (replies >
+                                        0)
+                                      Text(
+                                        '$replies ${replies == 1 ? 'reply' : 'replies'}',
+                                        style:
+                                            const TextStyle(
+                                          color:
+                                              Colors
+                                                  .grey,
+                                          fontSize:
+                                              12,
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    );
+                  },
+                ),
+              ),
+
+              const Divider(
+                height: 1,
+              ),
+
+              if (replyingTo != null)
+                Container(
+                  width: double.infinity,
+                  padding:
+                      const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  color: Theme.of(context)
+                      .colorScheme
+                      .surfaceContainerHighest,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Replying to $replyingToName',
+                          style:
+                              const TextStyle(
+                            fontWeight:
+                                FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed:
+                            cancelReply,
+                        icon:
+                            const Icon(
+                          Icons.close,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+              Padding(
+                padding:
+                    const EdgeInsets.fromLTRB(
+                  12,
+                  8,
+                  12,
+                  8,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller:
+                            commentController,
+                        textInputAction:
+                            TextInputAction.send,
+                        onSubmitted:
+                            (_) =>
+                                sendComment(),
+                        decoration:
+                            InputDecoration(
+                          hintText:
+                              replyingTo !=
+                                      null
+                                  ? 'Write a reply...'
+                                  : 'Write a comment...',
+                          border:
+                              const OutlineInputBorder(),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(
+                      width: 8,
+                    ),
+
+                    IconButton(
+                      onPressed:
+                          sending
+                              ? null
+                              : sendComment,
+                      icon: sending
+                          ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child:
+                                  CircularProgressIndicator(
+                                strokeWidth:
+                                    2,
+                              ),
+                            )
+                          : const Icon(
+                              Icons.send,
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Avatar extends StatelessWidget {
+  final String imageUrl;
+  final String name;
+
+  const _Avatar({
+    required this.imageUrl,
+    required this.name,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (imageUrl.trim().isNotEmpty) {
+      return CircleAvatar(
+        radius: 22,
+        backgroundImage:
+            NetworkImage(imageUrl),
+      );
+    }
+
+    return CircleAvatar(
+      radius: 22,
+      child: Text(
+        name.isNotEmpty
+            ? name.substring(0, 1).toUpperCase()
+            : 'S',
+        style: const TextStyle(
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+}
+
+class _CircleButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+  final bool active;
+
+  const _CircleButton({
+    required this.icon,
+    required this.onTap,
+    this.active = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      onPressed: onTap,
+      icon: Icon(
+        icon,
+        color: active ? Colors.red : null,
+      ),
+    );
+  }
+}
